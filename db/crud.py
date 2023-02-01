@@ -1,10 +1,9 @@
 from typing import Union
 from uuid import UUID
 
-from sqlalchemy import and_, update
+from sqlalchemy import and_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.models import UpdateUser
 from db.models import User
 
 
@@ -27,10 +26,29 @@ class UserDAL:
             where(and_(User.user_id == user_id, User.is_active == True)).\
             values(is_active=False).\
             returning(User.user_id)
-        res = await self.db_session.execute(query)
-        deleted_id = res.fetchone()
+        result_db = await self.db_session.execute(query)
+        deleted_id = result_db.fetchone()
         return deleted_id[0] if deleted_id else None
 
-    async def change_user_info(self, user_id: UUID, body: UpdateUser):
-        pass
+    async def get_user_by_id(self, user_id: UUID) -> Union[User, None]:
+        query = select(User). \
+            where(and_(User.user_id == user_id, User.is_active == True))
+        result_db = await self.db_session.execute(query)
+        user_info_in_db = result_db.fetchone()
+        return user_info_in_db[0] if user_info_in_db else None
+
+    async def change_user_info(self, user_id: UUID, **kwargs) -> Union[UUID, None]:
+        query = update(User).\
+            where(and_(User.user_id == user_id, User.is_active == True)).\
+            values(**kwargs).\
+            returning(User.user_id)
+        result_update = await self.db_session.execute(query)
+        updated_id = result_update.fetchone()
+        return updated_id[0] if updated_id else None
+
+
+
+
+
+
 
