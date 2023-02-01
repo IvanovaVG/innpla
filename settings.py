@@ -8,3 +8,6 @@ DATABASE = env.str('POSTGRES_DB', default='postgres')
 DATABASE_ADDRESS = env.str('POSTGRES_ADDRESS', default='0.0.0.0')
 DATABASE_PORT = env.str('POSTGRES_PORT', default='5432')
 DATABASE_URL = f'postgresql+asyncpg://{DATABASE_USER}:{DATABASE_PASSWORD}@{DATABASE_ADDRESS}:{DATABASE_PORT}/{DATABASE}'
+
+
+TEST_DATABASE_URL = 'postgresql+asyncpg://postgres_test:postgres_test@0.0.0.0:5433/postgres_test'
