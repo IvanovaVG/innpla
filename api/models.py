@@ -47,10 +47,16 @@ class UpdateUser(TunedModel):
         return value
 
 
+class AuthCodeResponse(TunedModel):
+    user_id: uuid.UUID
+    code: int
+
+
 class CreateUser(BaseModel):
     name: str
     surname: str
     email: EmailStr
+    password: str
 
     @validator('name')
     def validate_name(cls, value):

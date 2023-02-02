@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.models import (
+    AuthCodeResponse,
     CreateUser,
     DeletedUser,
     ShowUser,
@@ -13,6 +14,8 @@ from api.models import (
 )
 from db.connect import get_db
 from db.crud import UserDAL
+from db.models import AuthCode
+from mail_sender.generator_message import generate_code_for_activation
 
 user_router = APIRouter()
 
@@ -24,7 +27,8 @@ async def _create_user(body: CreateUser, db: AsyncSession) -> ShowUser:
             user = await user_dal.create_user(
                 name=body.name,
                 surname=body.surname,
-                email=body.email
+                email=body.email,
+                password=body.password
             )
             return ShowUser(
                 user_id=user.user_id,
@@ -65,9 +69,32 @@ async def _get_user_by_id(user_id: UUID, db: AsyncSession) -> Union[ShowUser, No
             ) if user else user
 
 
+async def _add_verification_password(user_id: UUID, code: int, db: AsyncSession) -> AuthCodeResponse:
+    async with db as session:
+        async with session.begin():
+            user_dal = UserDAL(session)
+            verification = await user_dal.insert_verification_code(
+                user_id=user_id,
+                code=code
+            )
+            return AuthCodeResponse(
+                user_id=verification.user_id,
+                code=verification.code
+            )
+
+
 @user_router.post('/', response_model=ShowUser)
 async def create_user(body: CreateUser, db: AsyncSession = Depends(get_db)) -> ShowUser:
-    return await _create_user(body=body, db=db)
+    new_user = await _create_user(body=body, db=db)
+    if not new_user.user_id:
+        raise HTTPException(status_code=404, detail='User not added')
+    code = await generate_code_for_activation()
+    await _add_verification_password(
+        user_id=new_user.user_id,
+        code=code,
+        db=db
+    )
+    return new_user
 
 
 @user_router.delete('/', response_model=DeletedUser)
@@ -88,8 +115,3 @@ async def change_user_info(user_id: UUID, body: UpdateUser, db: AsyncSession = D
         raise HTTPException(status_code=404, detail=f'User with id {user_id} not found')
     change_user = await _change_user_info(user_id=user_id, update_user_info=update_user_info, db=db)
     return UpdatedUser(updated_id=change_user)
-
-
-
-
-

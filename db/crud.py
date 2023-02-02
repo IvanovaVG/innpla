@@ -4,18 +4,21 @@ from uuid import UUID
 from sqlalchemy import and_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from db.models import User
+from db.models import AuthCode, User
+from utils.hasher import Hasher
 
 
 class UserDAL:
     def __init__(self, db_session: AsyncSession):
         self.db_session = db_session
 
-    async def create_user(self, name: str, surname: str, email: str) -> User:
+    async def create_user(self, name: str, surname: str, email: str, password: str) -> User:
+        hashed_password = Hasher.hash_password(password)
         new_user = User(
             name=name,
             surname=surname,
-            email=email
+            email=email,
+            hashed_password=hashed_password
         )
         self.db_session.add(new_user)
         await self.db_session.flush()
@@ -46,6 +49,14 @@ class UserDAL:
         updated_id = result_update.fetchone()
         return updated_id[0] if updated_id else None
 
+    async def insert_verification_code(self, user_id: UUID, code: int) -> AuthCode:
+        added_code = AuthCode(
+            user_id=user_id,
+            code=code,
+        )
+        self.db_session.add(added_code)
+        await self.db_session.flush()
+        return added_code
 
 
 
