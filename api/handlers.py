@@ -2,6 +2,7 @@ from typing import Union
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi_mail import MessageSchema, MessageType, FastMail
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.models import (
@@ -15,7 +16,11 @@ from api.models import (
 from db.connect import get_db
 from db.crud import UserDAL
 from db.models import AuthCode
+from mail_sender.config import conf
 from mail_sender.generator_message import generate_code_for_activation
+import ssl
+
+ssl._create_default_https_context = ssl._create_unverified_context
 
 user_router = APIRouter()
 
@@ -94,6 +99,17 @@ async def create_user(body: CreateUser, db: AsyncSession = Depends(get_db)) -> S
         code=code,
         db=db
     )
+    email_to_send = [body.email]
+    html = f"<p>You're verification code: {code}</p>"
+
+    message = MessageSchema(
+        subject="Fastapi-Mail module",
+        recipients=email_to_send,
+        body=html,
+        subtype=MessageType.html)
+
+    fm = FastMail(conf)
+    await fm.send_message(message)
     return new_user
 
 
